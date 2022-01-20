@@ -1,0 +1,749 @@
+\documentclass{article}
+
+%\usepackage{polish}
+% skomentowana dla MAC wersja {inputenc}
+%\usepackage[utf8]{inputenc}
+ \usepackage[T1]{fontenc}
+\usepackage[cp1250]{inputenc}
+%\usepackage{polski}
+\usepackage{amssymb}
+\usepackage{color}
+\usepackage{amsmath}
+\usepackage{Sweave}
+\usepackage{enumerate}
+\usepackage{hyperref}
+\usepackage{url}
+
+\title{Analiza cech piosenek na Spotify}
+\author{\textbf{407616, Bart³omiej Chwast}, poniedzia³ek $16^{15}$\\ 
+\textit{AGH, Wydzia³‚ Informatyki Elektroniki i Telekomunikacji}\\
+\textit{Rachunek prawdopodobieñstwa i statystyka 2021/2022}}
+\date{Kraków, \today}
+
+
+\begin{document}
+\input{Spotify-concordance}
+\maketitle
+
+\textit{Ja, ni¿ej podpisany w³asnorêcznym podpisem deklarujê, ¿e przygotowa³em przedstawiony do oceny projekt samodzielnie i ¿adna jego czêœæ nie jest kopi¹ pracy innej osoby.}
+\begin{flushright}
+{............................................}
+\end{flushright}
+
+\section{Streszczenie raportu}
+Raport powsta³‚ w oparciu o analizê danych dotycz¹cych cech prawie 19 000 utworów 
+spoœród dostêpnych na platformie Spotify. Cechy te zosta³y zmierzone przez API Spotify 
+(wiêcej informacji o sposobie mierzenia na stronie \url{https://developer.spotify.com/documentation/web-api/reference/\#/operations/get-audio-features}
+
+\section{Opis danych}
+Dane do projektu pochodz¹… ze strony \url{https://www.kaggle.com/ektanegi/spotifydata-19212020}. Dotycz¹ one cech prawie 19 000 utworów na Spotify. 
+Zmienne analizowane w projekcie:
+\begin{itemize}
+\item danceability - jak bardzo utwór nadaje siê do tañczenia od 0 do 1
+\item energy - jak bardzo energetyczny jest utwór od 0 do 1
+\item loudness - ogólna g³oœnoœæ utworu od -60dB do 0dB
+\item tempo - tempo utworu w BPM
+\item valence - jak bardzo pozytywnie brzmi utwór od 0 do 1
+\end{itemize}
+
+\section{Analiza danych}
+
+\subsection{Przygotowanie danych do analizy}
+
+W projekcie wykorzysta³em nastêpuj¹ce biblioteki:
+
+\begin{Schunk}
+\begin{Sinput}
+> library(ggplot2)
+> library(ggcorrplot)
+> library(moments)
+> library(nortest)
+> library(grid)
+> library(gridExtra)
+> library(hrbrthemes)
+\end{Sinput}
+\end{Schunk}
+
+Pracê rozpocz¹³em od wczytania danych do R, po czym wybra³em kolumny do analizy 
+i zapisa³em je do osobnego pliku.
+
+\begin{Schunk}
+\begin{Sinput}
+> filePath <- "data.csv"
+> data <- read.csv(filePath)
+> dataSet <- as.data.frame(cbind(data$danceability, data$energy, data$loudness, 
++                                data$tempo, data$audio_valence))
+> colnames(dataSet)[1] <- "danceability"
+> colnames(dataSet)[2] <- "energy"
+> colnames(dataSet)[3] <- "loudness"
+> colnames(dataSet)[4] <- "tempo"
+> colnames(dataSet)[5] <- "valence"
+> attach(dataSet)
+> write.csv(dataSet, "./dataSet.csv", row.names = TRUE)
+\end{Sinput}
+\end{Schunk}
+
+\subsection{Wydobywanie podstawowych informacji z danych}
+
+Dla ka¿dej ze zmiennych wyznaczy³em przedzia³ wartoœci, œredni¹, kwartyle, 
+wariancjê, kurtozê i wspó³czynnik asymetrii.
+Kolejno dla ka¿dej wygenerowa³em histogram i boxplot. Nastêpnie wygenerowa³em 
+wykres QQ oraz wykona³em test Lillieforsa w celu sprawdzenia czy dane 
+pochodz¹ z rozk³adu normalnego. 
+
+\newpage
+
+\subsection{Zmienna 'danceability'}
+
+Na pocz¹tek zbada³em zmienn¹ 'danceability'.
+
+\begin{Schunk}
+\begin{Sinput}
+> histogram <- ggplot(dataSet, aes(x = danceability), xlab="danceability") + 
++   geom_histogram(binwidth=0.03, color="black", fill="darkmagenta") + 
++   theme_ipsum(base_family = 'sans') + 
++   labs(title="Histogram 'danceability'")
+> histogram
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-danceability_histogram}
+\begin{Schunk}
+\begin{Sinput}
+> boxplot <- ggplot(dataSet, aes(x = danceability), xlab="danceability") + 
++   geom_boxplot(color="black", fill="darkmagenta", alpha=0.5, outlier.size=5) + 
++   theme_ipsum(base_family = 'sans') + 
++   labs(title="Boxplot 'danceability'")
+> boxplot
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-danceability_boxplot}
+
+\begin{Schunk}
+\begin{Sinput}
+> range(danceability)
+\end{Sinput}
+\begin{Soutput}
+[1] 0.000 0.987
+\end{Soutput}
+\begin{Sinput}
+> mean(danceability)
+\end{Sinput}
+\begin{Soutput}
+[1] 0.6333481
+\end{Soutput}
+\begin{Sinput}
+> quantile(danceability, c(0.25, 0.5, 0.75)) 
+\end{Sinput}
+\begin{Soutput}
+  25%   50%   75% 
+0.533 0.645 0.748 
+\end{Soutput}
+\begin{Sinput}
+> var(danceability) 
+\end{Sinput}
+\begin{Soutput}
+[1] 0.02456201
+\end{Soutput}
+\begin{Sinput}
+> sd(danceability) 
+\end{Sinput}
+\begin{Soutput}
+[1] 0.1567227
+\end{Soutput}
+\begin{Sinput}
+> skewness(danceability)
+\end{Sinput}
+\begin{Soutput}
+[1] -0.3916879
+\end{Soutput}
+\begin{Sinput}
+> kurtosis(danceability)
+\end{Sinput}
+\begin{Soutput}
+[1] 2.924905
+\end{Soutput}
+\end{Schunk}
+
+Wartoœci zmiennej siêgaj¹ od 0.000 do 0.987, ich œrednia to 0.633, wariancja to 0.0246, 
+a odchylenie standardowe to 0.157. 
+Wspó³czynnik asymetrii jest ujemny, zatem rozk³ad jest lewostronnie skoœny. 
+Wspó³czynnik wyostrzenia róWnie¿ jest ujemny, wiêc rozk³ad jest platykurtyczny.
+
+\begin{Schunk}
+\begin{Sinput}
+> qqnorm(danceability)
+> qqline(danceability)
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-danceability_qq}
+
+\begin{Schunk}
+\begin{Sinput}
+> lillie.test(danceability)
+\end{Sinput}
+\begin{Soutput}
+	Lilliefors (Kolmogorov-Smirnov) normality test
+
+data:  danceability
+D = 0.031847, p-value < 2.2e-16
+\end{Soutput}
+\end{Schunk}
+
+Zarówno wykres QQ, jak i test Lillieforsa wskazuj¹, ¿e rozk³ad zmiennej 'danceability' 
+jest daleki od rozk³adu normalnego, kszta³t histogramu jednak¿e przypomina krzyw¹ 
+dzwonow¹
+
+\newpage
+
+\subsection{Zmienna 'energy'}
+
+\begin{Schunk}
+\begin{Sinput}
+> histogram <- ggplot(dataSet, aes(x = energy), xlab="energy") + 
++   geom_histogram(binwidth=0.03, color="black", fill="orangered2") + 
++   theme_ipsum(base_family = 'sans') + 
++   labs(title="Histogram 'energy'")
+> histogram
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-energy_histogram}
+\begin{Schunk}
+\begin{Sinput}
+> boxplot <- ggplot(dataSet, aes(x = energy), xlab="energy") + 
++   geom_boxplot(color="black", fill="orangered2", alpha=0.5, outlier.size=5) + 
++   theme_ipsum(base_family = 'sans') + 
++   labs(title="Boxplot 'energy'")
+> boxplot
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-energy_boxplot}
+
+\begin{Schunk}
+\begin{Sinput}
+> range(energy)
+\end{Sinput}
+\begin{Soutput}
+[1] 0.00107 0.99900
+\end{Soutput}
+\begin{Sinput}
+> mean(energy)
+\end{Sinput}
+\begin{Soutput}
+[1] 0.6449948
+\end{Soutput}
+\begin{Sinput}
+> quantile(energy, c(0.25, 0.5, 0.75)) 
+\end{Sinput}
+\begin{Soutput}
+  25%   50%   75% 
+0.510 0.674 0.815 
+\end{Soutput}
+\begin{Sinput}
+> var(energy)
+\end{Sinput}
+\begin{Soutput}
+[1] 0.04583913
+\end{Soutput}
+\begin{Sinput}
+> sd(energy)
+\end{Sinput}
+\begin{Soutput}
+[1] 0.2141008
+\end{Soutput}
+\begin{Sinput}
+> skewness(energy)
+\end{Sinput}
+\begin{Soutput}
+[1] -0.6206881
+\end{Soutput}
+\begin{Sinput}
+> kurtosis(energy)
+\end{Sinput}
+\begin{Soutput}
+[1] 2.861844
+\end{Soutput}
+\end{Schunk}
+
+Wartoœci zmiennej siêgaj¹ od 0.00107 do 0.999, ich œrednia to 0.645, 
+wariancja to 0.0458, a odchylenie standardowe to 0.214.
+Wspó³czynnik asymetrii jest ujemny, zatem rozk³ad jest lewostronnie skoœny. 
+Wspó³czynnik wyostrzenia róWnie¿ jest ujemny, wiêc rozk³ad jest platykurtyczny.
+
+\begin{Schunk}
+\begin{Sinput}
+> qqnorm(energy)
+> qqline(energy)
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-energy_qq}
+
+\begin{Schunk}
+\begin{Sinput}
+> lillie.test(energy)
+\end{Sinput}
+\begin{Soutput}
+	Lilliefors (Kolmogorov-Smirnov) normality test
+
+data:  energy
+D = 0.058258, p-value < 2.2e-16
+\end{Soutput}
+\end{Schunk}
+
+Zarówno wykres QQ, jak i test Lillieforsa wskazuj¹, ¿e rozk³ad zmiennej 'energy' 
+jest daleki od rozk³adu normalnego.
+
+\newpage
+
+\subsection{Zmienna 'loudness'}
+
+\begin{Schunk}
+\begin{Sinput}
+> histogram <- ggplot(dataSet, aes(x = loudness), xlab="loudenss") + 
++   geom_histogram(binwidth=1, color="black", fill="green1") + 
++   theme_ipsum(base_family = 'sans') + 
++   labs(title="Histogram 'loudness'")
+> histogram
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-loudness_histogram}
+\begin{Schunk}
+\begin{Sinput}
+> boxplot <- ggplot(dataSet, aes(x = loudness), xlab="loudness") + 
++   geom_boxplot(color="black", fill="green1", alpha=0.5, outlier.size=5) + 
++   theme_ipsum(base_family = 'sans') + 
++   labs(title="Boxplot 'loudness'")
+> boxplot
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-loudness_boxplot}
+
+\begin{Schunk}
+\begin{Sinput}
+> range(loudness)
+\end{Sinput}
+\begin{Soutput}
+[1] -38.768   1.585
+\end{Soutput}
+\begin{Sinput}
+> mean(loudness)
+\end{Sinput}
+\begin{Soutput}
+[1] -7.447435
+\end{Soutput}
+\begin{Sinput}
+> quantile(loudness, c(0.25, 0.5, 0.75)) 
+\end{Sinput}
+\begin{Soutput}
+   25%    50%    75% 
+-9.044 -6.555 -4.908 
+\end{Soutput}
+\begin{Sinput}
+> var(loudness)
+\end{Sinput}
+\begin{Soutput}
+[1] 14.65229
+\end{Soutput}
+\begin{Sinput}
+> sd(loudness)
+\end{Sinput}
+\begin{Soutput}
+[1] 3.827831
+\end{Soutput}
+\begin{Sinput}
+> skewness(loudness)
+\end{Sinput}
+\begin{Soutput}
+[1] -1.929357
+\end{Soutput}
+\begin{Sinput}
+> kurtosis(loudness)
+\end{Sinput}
+\begin{Soutput}
+[1] 9.52043
+\end{Soutput}
+\end{Schunk}
+
+Wartoœci zmiennej siêgaj¹ od -38.768 do 1.585, ich œrednia to -7.447, 
+wariancja to 14.652, a odchylenie standardowe to 3.828. 
+Wspó³czynnik asymetrii jest ujemny, zatem rozk³ad jest lewostronnie skoœny. 
+Wspó³czynnik wyostrzenia jest dodatni, wiêc rozk³ad jest leptokurtyczny.
+
+\begin{Schunk}
+\begin{Sinput}
+> qqnorm(loudness)
+> qqline(loudness)
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-loudness_qq}
+
+\begin{Schunk}
+\begin{Sinput}
+> lillie.test(loudness)
+\end{Sinput}
+\begin{Soutput}
+	Lilliefors (Kolmogorov-Smirnov) normality test
+
+data:  loudness
+D = 0.10797, p-value < 2.2e-16
+\end{Soutput}
+\end{Schunk}
+
+Zarówno wykres QQ, jak i test Lillieforsa wskazuj¹, ¿e rozk³ad zmiennej 'loudness' 
+jest daleki od rozk³adu normalnego.
+
+\newpage
+
+\subsection{Zmienna 'tempo'}
+
+\begin{Schunk}
+\begin{Sinput}
+> histogram <- ggplot(dataSet, aes(x = tempo), xlab="tempo") + 
++   geom_histogram(binwidth=5, color="black", fill="lightblue1") + 
++   theme_ipsum(base_family = 'sans') + 
++   labs(title="Histogram 'tempo'")
+> histogram
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-tempo_histogram}
+\begin{Schunk}
+\begin{Sinput}
+> boxplot <- ggplot(dataSet, aes(x = tempo), xlab="tempo") + 
++   geom_boxplot(color="black", fill="lightblue1", alpha=0.5, outlier.size=5) + 
++   theme_ipsum(base_family = 'sans') + 
++   labs(title="Boxplot 'tempo'")
+> boxplot
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-tampo_boxplot}
+
+\begin{Schunk}
+\begin{Sinput}
+> range(tempo)
+\end{Sinput}
+\begin{Soutput}
+[1]   0.000 242.318
+\end{Soutput}
+\begin{Sinput}
+> mean(tempo)
+\end{Sinput}
+\begin{Soutput}
+[1] 121.0732
+\end{Soutput}
+\begin{Sinput}
+> quantile(tempo, c(0.25, 0.5, 0.75)) 
+\end{Sinput}
+\begin{Soutput}
+    25%     50%     75% 
+ 98.368 120.013 139.931 
+\end{Soutput}
+\begin{Sinput}
+> var(tempo)
+\end{Sinput}
+\begin{Soutput}
+[1] 824.52
+\end{Soutput}
+\begin{Sinput}
+> sd(tempo)
+\end{Sinput}
+\begin{Soutput}
+[1] 28.71446
+\end{Soutput}
+\begin{Sinput}
+> skewness(tempo)
+\end{Sinput}
+\begin{Soutput}
+[1] 0.4428193
+\end{Soutput}
+\begin{Sinput}
+> kurtosis(tempo)
+\end{Sinput}
+\begin{Soutput}
+[1] 2.782223
+\end{Soutput}
+\end{Schunk}
+
+Wartoœci zmiennej siêgaj¹ od 0 do 242.32, ich œrednia to 121.07, 
+wariancja to 824.52, a odchylenie standardowe to 28.714. 
+Wspó³czynnik asymetrii jest dodatni, zatem rozk³ad jest prawoostronnie skoœny. 
+Natomiast wspó³czynnik wyostrzenia jest ujemny, czyli rozk³ad jest platykurtyczny.
+
+\begin{Schunk}
+\begin{Sinput}
+> qqnorm(tempo)
+> qqline(tempo)
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-tempo_qq}
+
+\begin{Schunk}
+\begin{Sinput}
+> lillie.test(tempo)
+\end{Sinput}
+\begin{Soutput}
+	Lilliefors (Kolmogorov-Smirnov) normality test
+
+data:  tempo
+D = 0.055522, p-value < 2.2e-16
+\end{Soutput}
+\end{Schunk}
+
+Zarówno wykres QQ, jak i test Lillieforsa wskazuj¹, ¿e rozk³ad zmiennej 'tempo' 
+jest daleki od rozk³adu normalnego.
+
+\newpage
+
+\subsection{Zmienna 'valence'}
+
+\begin{Schunk}
+\begin{Sinput}
+> histogram <- ggplot(dataSet, aes(x = valence), xlab="valence") + 
++   geom_histogram(binwidth=0.03, color="black", fill="yellow1") + 
++   theme_ipsum(base_family = 'sans') + 
++   labs(title="Histogram 'valence'")
+> histogram
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-valence_histogram}
+\begin{Schunk}
+\begin{Sinput}
+> boxplot <- ggplot(dataSet, aes(x = valence), xlab="valence") + 
++   geom_boxplot(color="black", fill="yellow1", alpha=0.5, outlier.size=5) + 
++   theme_ipsum(base_family = 'sans') + 
++   labs(title="Boxplot 'valence'")
+> boxplot
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-valence_boxplot}
+
+\begin{Schunk}
+\begin{Sinput}
+> range(valence)
+\end{Sinput}
+\begin{Soutput}
+[1] 0.000 0.984
+\end{Soutput}
+\begin{Sinput}
+> mean(valence)
+\end{Sinput}
+\begin{Soutput}
+[1] 0.5279669
+\end{Soutput}
+\begin{Sinput}
+> quantile(valence, c(0.25, 0.5, 0.75)) 
+\end{Sinput}
+\begin{Soutput}
+  25%   50%   75% 
+0.335 0.527 0.725 
+\end{Soutput}
+\begin{Sinput}
+> var(valence)
+\end{Sinput}
+\begin{Soutput}
+[1] 0.05984466
+\end{Soutput}
+\begin{Sinput}
+> sd(valence)
+\end{Sinput}
+\begin{Soutput}
+[1] 0.2446317
+\end{Soutput}
+\begin{Sinput}
+> skewness(valence)
+\end{Sinput}
+\begin{Soutput}
+[1] -0.01642191
+\end{Soutput}
+\begin{Sinput}
+> kurtosis(valence)
+\end{Sinput}
+\begin{Soutput}
+[1] 2.02227
+\end{Soutput}
+\end{Schunk}
+
+Wartoœci zmiennej siêgaj¹ od 0 do 0.984, ich œrednia to 0.528, 
+wariancja to 0.0598, a odchylenie standardowe to 0.245. 
+Wspó³czynnik asymetrii jest ujemny, zatem rozk³ad jest lewostronnie skoœny. 
+Wspó³czynnik wyostrzenia jest ujemny, wiêc rozk³ad jest platykurtyczny.
+
+\begin{Schunk}
+\begin{Sinput}
+> qqnorm(valence)
+> qqline(valence)
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-valence_qq}
+
+\begin{Schunk}
+\begin{Sinput}
+> lillie.test(valence)
+\end{Sinput}
+\begin{Soutput}
+	Lilliefors (Kolmogorov-Smirnov) normality test
+
+data:  valence
+D = 0.041885, p-value < 2.2e-16
+\end{Soutput}
+\end{Schunk}
+
+Zarówno wykres QQ, jak i test Lillieforsa wskazuj¹, ¿e rozk³ad zmiennej 'valence' 
+jest daleki od rozk³adu normalnego.
+
+\section{Analiza zale¿noœci pomiêdzy zmiennymi}
+
+\subsection{Kowawariancja i korelacja miêdzy wszystkimi zmiennymi}
+
+\begin{Schunk}
+\begin{Sinput}
+> cov(dataSet[,c(1,2,3,4,5)])
+\end{Sinput}
+\begin{Soutput}
+             danceability      energy   loudness       tempo    valence
+danceability  0.024562006 0.001488922  0.1065669  -0.5458132 0.01272921
+energy        0.001488922 0.045839134  0.6191764   0.9986978 0.01658961
+loudness      0.106566874 0.619176350 14.6522916  14.2820088 0.18699703
+tempo        -0.545813232 0.998697790 14.2820088 824.5199676 0.26458976
+valence       0.012729213 0.016589609  0.1869970   0.2645898 0.05984466
+\end{Soutput}
+\begin{Sinput}
+> cor(dataSet[,c(1,2,3,4,5)])
+\end{Sinput}
+\begin{Soutput}
+             danceability     energy  loudness       tempo    valence
+danceability   1.00000000 0.04437331 0.1776387 -0.12128625 0.33201441
+energy         0.04437331 1.00000000 0.7555155  0.16244835 0.31674170
+loudness       0.17763868 0.75551551 1.0000000  0.12993793 0.19969593
+tempo         -0.12128625 0.16244835 0.1299379  1.00000000 0.03766689
+valence        0.33201441 0.31674170 0.1996959  0.03766689 1.00000000
+\end{Soutput}
+\end{Schunk}
+
+\begin{Schunk}
+\begin{Sinput}
+> ggcorrplot(cor(dataSet[,c(1,2,3,4,5)]))
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-corrplot}
+
+Na podstawie uzyskanych danych mo¿na stwierdziæ, ¿e istnieje ca³kiem silna 
+korelacja pomiêdzy zmiennymi 'energy' i 'loudness'. Ponadto pomiêdzy zmiennymi 
+'valence' i 'danceability' oraz 'valence' i 'energy' istniej¹ zauwa¿alne korelacje.
+
+\subsection{Badanie zgodnoœci rozk³adów 'energy' i 'loudness'}
+
+Rozpocz¹³em od wygenerowania wykresu zale¿noœci 'energy' od 'loudness'
+
+\begin{Schunk}
+\begin{Sinput}
+> plotle <- ggplot(dataSet, aes(x = loudness, y = energy), xlab="loudness", 
++   ylab="energy") + 
++   geom_point() + 
++   geom_smooth(formula = y ~ x, method = "lm") + 
++   theme_ipsum(base_family = 'sans') + 
++   labs(title="Zale¿noœæ 'energy' od 'loudness'")
+> plotle
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-energy_loudness_plot}
+
+Wykres nie wskaza³ obecnoœci zale¿noœci liniowej pomiêdzy 'energy' a 'loudness' 
+zatem dalsza analiza nie jest sensowna.
+
+\newpage
+
+\subsection{Badanie zgodnoœci rozk³adów 'valence' i 'danceability'}
+
+Wygenerowa³em wykres zale¿noœci 'danceability' od 'valence'
+
+\begin{Schunk}
+\begin{Sinput}
+> plotvd <- ggplot(dataSet, aes(x = valence, y = danceability), xlab="valence", 
++   ylab="danceability") + 
++   geom_point() + 
++   geom_smooth(formula = y ~ x, method = "lm") + 
++   theme_ipsum(base_family = 'sans') + 
++   labs(title="Zale¿noœæ 'danceability' od 'valence'")
+> plotvd
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-energy_danceability_valence}
+
+Widoczna na wykresie zale¿noœæ liniowa jest wystarczaj¹co zauwa¿alna, zatem 
+przechodzê do analizy regresji liniowej
+\newline
+\newline
+Testowane zmienne s¹ niezale¿ne. 
+\newline
+Mo¿na przyj¹æ, ¿e zmienna 'danceability' ma rozk³ad zbli¿ony do rozk³adu normalnego. 
+
+\newpage
+
+\begin{Schunk}
+\begin{Sinput}
+> reg <- lm(danceability ~ valence)
+> summary(reg)
+\end{Sinput}
+\begin{Soutput}
+Call:
+lm(formula = danceability ~ valence)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-0.56145 -0.09842  0.00466  0.10494  0.42630 
+
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)    
+(Intercept) 0.521047   0.002562   203.3   <2e-16 ***
+valence     0.212704   0.004403    48.3   <2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 0.1478 on 18833 degrees of freedom
+Multiple R-squared:  0.1102,	Adjusted R-squared:  0.1102 
+F-statistic:  2333 on 1 and 18833 DF,  p-value: < 2.2e-16
+\end{Soutput}
+\end{Schunk}
+
+Z otrzymanych danych mo¿na wywnioskowaæ, ¿e istnieje istotna pozytywna relacja 
+pomiêdzy 'valence' a 'danceability' (p-value < 0.001). Mo¿na zaobserwowaæ tak¿e 
+wzrost 'valence' o 0.213 zwi¹zany z jednostkowym wzrostem 'danceability'
+\newline
+\newline
+Jednak¿e niski wskaŸnik \textbf{$R^{2}$} mówi o tym, ¿e testowane zmienne maj¹ 
+jednak doœæ ograniczony wp³yw na siebie.
+
+\newpage
+
+\subsection{Badanie zgodnoœci rozk³adów 'valence' i 'energy'}
+
+Finalnie wygenerowa³em wykresu zale¿noœci 'energy' od 'valence'
+
+\begin{Schunk}
+\begin{Sinput}
+> plotve <- ggplot(dataSet, aes(x = valence, y = energy), xlab="valence", 
++   ylab="energy") + 
++   geom_point() + 
++   geom_smooth(formula = y ~ x, method = "lm") + 
++   theme_ipsum(base_family = 'sans') + 
++   labs(title="Zale¿noœæ 'energy' od 'valence'")
+> plotve
+\end{Sinput}
+\end{Schunk}
+\includegraphics{Spotify-energy_valence_plot}
+
+Zale¿noœæ liniowa ukazana na wykresie nie jest na tyle widoczna, aby warto by³o 
+przeprowadzaæ dalsze badanie.
+
+\newpage
+
+\section{Wnioski}
+Wnioski p³yn¹ce z przeprowadzonej analizy, s¹ nastêpuj¹ce:
+\begin{itemize}
+\item rozk³ad 'danceability' jest zbli¿óny kszta³tem do rozk³adu normalnego,
+\item wykonane testy Lillieforsa wskazuj¹ jednak¿e, ¿e badane rozk³ady nie s¹ 
+w rzeczywistoœci zbli¿one do rozk³adu normalnego,
+\item istnieje silna dodatnia korelacja pomiêdzy zmiennymi 'energy' i 'loudness',
+\item widoczna jest zale¿noœæ liniowa pomiêdzy 'valence' a 'danceability'
+\end{itemize}
+
+\end{document}
