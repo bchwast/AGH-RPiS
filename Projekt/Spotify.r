@@ -7,9 +7,9 @@ library(nortest)
 library(grid)
 library(gridExtra)
 library(hrbrthemes)
+library(rstudioapi)
 
-#setwd("D:/Repo/RPis/Projekt/")
-# data <- read.csv("./data.csv")
+setwd(dirname(getActiveDocumentContext()$path))
 
 filePath <- "data.csv"
 data <- read.csv(filePath)
@@ -22,7 +22,6 @@ colnames(dataSet)[4] <- "tempo"
 colnames(dataSet)[5] <- "valence"
 attach(dataSet)
 write.csv(dataSet, "./dataSet.csv", row.names = TRUE)
-
 
 # Podstawowa analiza danych
 
@@ -157,7 +156,6 @@ kurtosis(valence)
 qqnorm(valence)
 qqline(valence)
 lillie.test(valence)
-round(mean(valence) + c(-1, 1) * sd(valence) / sqrt(169909) * qnorm(0.9999999999999999), 3)
 
 # Macierze kowariancji i korelacji dla wszystkich zmiennych
 
@@ -179,12 +177,14 @@ plotle
 # Zale¿noœæ miêdzy danceability a valence
 
 plotvd <- ggplot(dataSet, aes(x = valence, y = danceability), xlab="valence", 
-                 ylab="danceability") + 
-  geom_point() + 
-  geom_smooth(formula = y ~ x, method = "lm") + 
-  theme_ipsum(base_family = 'sans') + 
+                 ylab="danceability") +
+  geom_point() +
+  geom_smooth(formula = y ~ x, method = "lm") +
+  theme_ipsum(base_family = 'sans') +
   labs(title="Zale¿noœæ 'danceability' od 'valence'")
 plotvd
+
+# Regresja liniowa
 
 reg <- lm(danceability ~ valence)
 summary(reg)
