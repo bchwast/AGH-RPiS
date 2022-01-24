@@ -1,0 +1,448 @@
+\documentclass{article}
+
+%\usepackage{polish}
+% skomentowana dla MAC wersja {inputenc}
+%\usepackage[utf8]{inputenc}
+ \usepackage[T1]{fontenc}
+\usepackage[cp1250]{inputenc}
+%\usepackage{polski}
+\usepackage{amssymb}
+\usepackage{color}
+\usepackage{amsmath}
+\usepackage{Sweave}
+\usepackage{enumerate}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{caption}
+\usepackage{subfig}
+<<echo=FALSE>>=
+library(ggplot2)
+library(ggcorrplot)
+library(moments)
+library(nortest)
+library(grid)
+library(gridExtra)
+library(hrbrthemes)
+filePath <- "data.csv"
+data <- read.csv(filePath)
+dataSet <- as.data.frame(cbind(data$danceability, data$energy, data$loudness,
+                               data$tempo, data$audio_valence))
+colnames(dataSet)[1] <- "danceability"
+colnames(dataSet)[2] <- "energy"
+colnames(dataSet)[3] <- "loudness"
+colnames(dataSet)[4] <- "tempo"
+colnames(dataSet)[5] <- "valence"
+attach(dataSet)
+write.csv(dataSet, "./dataSet.csv", row.names = TRUE)
+@
+\title{Analiza cech piosenek na Spotify}
+\author{\textbf{407616, Bart³omiej Chwast}, poniedzia³ek $16^{15}$\\ 
+\textit{AGH, Wydzia³‚ Informatyki Elektroniki i Telekomunikacji}\\
+\textit{Rachunek prawdopodobieñstwa i statystyka 2021/2022}}
+\date{Kraków, \today}
+
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+\maketitle
+
+\textit{Ja, ni¿ej podpisany w³asnorêcznym podpisem deklarujê, ¿e przygotowa³em przedstawiony do oceny projekt samodzielnie i ¿adna jego czêœæ nie jest kopi¹ pracy innej osoby.}
+\begin{flushright}
+{............................................}
+\end{flushright}
+
+\section{Streszczenie raportu}
+Raport powsta³‚ w oparciu o analizê danych dotycz¹cych cech prawie 19 000 utworów 
+spoœród dostêpnych na platformie Spotify. Cechy te zosta³y zmierzone przez API Spotify 
+(wiêcej informacji o sposobie mierzenia na stronie \url{https://developer.spotify.com/documentation/web-api/reference/\#/operations/get-audio-features} .
+
+\section{Opis danych}
+Dane do projektu pochodz¹… ze strony \url{https://www.kaggle.com/ektanegi/spotifydata-19212020}. Dotycz¹ one cech prawie 19 000 utworów na Spotify. 
+Zmienne analizowane w projekcie:
+\begin{itemize}
+\item danceability - jak bardzo utwór nadaje siê do tañczenia od 0 do 1
+\item energy - jak bardzo energetyczny jest utwór od 0 do 1
+\item loudness - ogólna g³oœnoœæ utworu od -60dB do 0dB
+\item tempo - tempo utworu w BPM
+\item valence - jak bardzo pozytywnie brzmi utwór od 0 do 1
+\end{itemize}
+
+\section{Analiza danych}
+
+\subsection{Przygotowanie danych do analizy}
+
+W projekcie wykorzysta³em nastêpuj¹ce biblioteki:
+
+<<>>=
+library(ggplot2)
+library(ggcorrplot)
+library(moments)
+library(nortest)
+library(grid)
+library(gridExtra)
+library(hrbrthemes)
+@
+
+Pracê rozpocz¹³em od wczytania danych do R, po czym wybra³em kolumny do analizy
+i zapisa³em je do osobnego pliku.
+
+<<>>=
+filePath <- "data.csv"
+data <- read.csv(filePath)
+dataSet <- as.data.frame(cbind(data$danceability, data$energy, data$loudness,
+                               data$tempo, data$audio_valence))
+colnames(dataSet)[1] <- "danceability"
+colnames(dataSet)[2] <- "energy"
+colnames(dataSet)[3] <- "loudness"
+colnames(dataSet)[4] <- "tempo"
+colnames(dataSet)[5] <- "valence"
+attach(dataSet)
+write.csv(dataSet, "./dataSet.csv", row.names = TRUE)
+@
+
+\subsection{Wydobywanie podstawowych informacji z danych}
+
+Dla ka¿dej ze zmiennych wyznaczy³em przedzia³ wartoœci, œredni¹, kwartyle, 
+wariancjê, kurtozê i wspó³czynnik asymetrii.
+Kolejno dla ka¿dej wygenerowa³em histogram i boxplot. Nastêpnie wygenerowa³em 
+wykres QQ oraz wykona³em test Lillieforsa w celu sprawdzenia czy dane 
+pochodz¹ z rozk³adu normalnego. Najciekawsze wyniki otrzyma³em dla zmiennych 
+'danceability' oraz 'valence', których badanie omówiê w tym raporcie. 
+Rezultaty otrzymane dla pozosta³ych zmiennych bêd¹ dostêpne do odczytania w 
+pliku z kodem w R oraz w dodatkowym pe³nym raporcie dostêpnym w pozosta³ych 
+plikach projektu.
+
+\subsection{Zmienna 'danceability'}
+
+Na pocz¹tek rozwa¿my zmienn¹ 'danceability'.
+
+\SweaveOpts{width=20, height=15}
+<<label=danceability_histogram, fig=TRUE, echo=FALSE>>=
+histogram <- ggplot(dataSet, aes(x = danceability), xlab="danceability") + 
+  geom_histogram(binwidth=0.03, color="black", fill="darkmagenta") + 
+  theme_ipsum(base_family = 'sans') + 
+  labs(title="Histogram 'danceability'")
+boxplot <- ggplot(dataSet, aes(x = danceability), xlab="danceability") + 
+  geom_boxplot(color="black", fill="darkmagenta", alpha=0.5, outlier.size=5) + 
+  theme_ipsum(base_family = 'sans') + 
+  labs(title="Boxplot 'danceability'")
+grid.arrange(histogram, boxplot, nrow=1)
+@
+
+<<echo=FALSE>>=
+df1 <- data.frame(Zmienna="danceability", Minimum=min(danceability), 
+           Maksimum=max(danceability), Œrednia=mean(danceability), 
+           Wariancja=var(danceability), Odch._stand.=sd(danceability))
+df2 <- data.frame(Zmienna="danceability", Skoœnoœæ=skewness(danceability), 
+           Kurtoza=kurtosis(danceability), Kw_pierwszy=quantile(danceability, 0.25),
+           Mediana=median(danceability), Kw_trzeci=quantile(danceability, 0.75))
+print(df1, row.names = FALSE)
+print(df2, row.names = FALSE)
+@
+
+Wartoœci zmiennej siêgaj¹ od 0.000 do 0.987, ich œrednia to 0.633, wariancja to 0.0246, 
+a odchylenie standardowe to 0.157. 
+Wspó³czynnik asymetrii jest ujemny, zatem rozk³ad jest lewostronnie skoœny. 
+Wspó³czynnik wyostrzenia róWnie¿ jest ujemny, wiêc rozk³ad jest platykurtyczny. 
+Historgram tej zmiennej przypomina kszta³tem krzyw¹ Gaussa, której centrum zosta³o 
+"przesuniête w prawo". Wywnioskowaæ z niego mo¿emy, ¿e wiêksza czêœæ badanych 
+utworów jest zawarta w przedziale od 0.5 do 0.8, jednak¿e wykres pude³kowy 
+pokazuje spor¹ grupê wartoœci odstaj¹cych w granicach od 0 do 0.2, potwierdza 
+to zmierzon¹ wspó³czynnikiwm asymetrii lewostronn¹ skoœnoœæ.
+
+<<label=danceability_qq, fig=TRUE, echo=FALSE>>=
+qqnorm(danceability)
+qqline(danceability)
+@
+
+<<echo=FALSE>>=
+lillie.test(danceability)
+@
+
+Pomimo tego, ¿e kszta³t histogramu przypomina krzyw¹ dzwonow¹, to zarówno wykres 
+QQ, jak i test Lillieforsa wskazuj¹, ¿e rozk³ad zmiennej 'danceability' 
+jest daleki od rozk³adu normalnego.
+
+\subsection{Zmienna 'energy'}
+
+\SweaveOpts{width=20, height=15}
+<<label=energy_histogram, fig=TRUE, echo=FALSE>>=
+histogram <- ggplot(dataSet, aes(x = energy), xlab="energy") +
+  geom_histogram(binwidth=0.03, color="black", fill="orangered2") +
+  theme_ipsum(base_family = 'sans') +
+  labs(title="Histogram 'energy'")
+boxplot <- ggplot(dataSet, aes(x = energy), xlab="energy") +
+  geom_boxplot(color="black", fill="orangered2", alpha=0.5, outlier.size=5) +
+  theme_ipsum(base_family = 'sans') +
+  labs(title="Boxplot 'energy'")
+grid.arrange(histogram, boxplot, nrow=1)
+@
+
+<<echo=FALSE>>=
+df1 <- data.frame(Zmienna="energy", Minimum=min(energy), 
+           Maksimum=max(energy), Œrednia=mean(energy), 
+           Wariancja=var(energy), Odch._stand.=sd(energy))
+df2 <- data.frame(Zmienna="energy", Skoœnoœæ=skewness(energy), 
+           Kurtoza=kurtosis(energy), Kw_pierwszy=quantile(energy, 0.25),
+           Mediana=median(energy), Kw_trzeci=quantile(energy, 0.75))
+print(df1, row.names = FALSE)
+print(df2, row.names = FALSE)
+@
+
+Wartoœci zmiennej siêgaj¹ od 0.00107 do 0.999, ich œrednia to 0.645,
+wariancja to 0.0458, a odchylenie standardowe to 0.214.
+Wspó³czynnik asymetrii jest ujemny, zatem rozk³ad jest lewostronnie skoœny.
+Wspó³czynnik wyostrzenia róWnie¿ jest ujemny, wiêc rozk³ad jest platykurtyczny.
+
+<<label=energy_qq, fig=TRUE, echo=FALSE>>=
+qqnorm(energy)
+qqline(energy)
+@
+
+<<echo=FALSE>>=
+lillie.test(energy)
+@
+
+Zarówno wykres QQ, jak i test Lillieforsa wskazuj¹, ¿e rozk³ad zmiennej 'energy'
+jest daleki od rozk³adu normalnego.
+
+\subsection{Zmienna 'loudness'}
+
+\SweaveOpts{width=20, height=15}
+<<label=loudness_histogram, fig=TRUE, echo=FALSE>>=
+histogram <- ggplot(dataSet, aes(x = loudness), xlab="loudenss") +
+  geom_histogram(binwidth=1, color="black", fill="green1") +
+  theme_ipsum(base_family = 'sans') +
+  labs(title="Histogram 'loudness'")
+boxplot <- ggplot(dataSet, aes(x = loudness), xlab="loudness") +
+  geom_boxplot(color="black", fill="green1", alpha=0.5, outlier.size=5) +
+  theme_ipsum(base_family = 'sans') +
+  labs(title="Boxplot 'loudness'")
+grid.arrange(histogram, boxplot, nrow=1)
+@
+
+<<echo=FALSE>>=
+df1 <- data.frame(Zmienna="loudness", Minimum=min(loudness), 
+           Maksimum=max(loudness), Œrednia=mean(loudness), 
+           Wariancja=var(loudness), Odch._stand.=sd(loudness))
+df2 <- data.frame(Zmienna="loudness", Skoœnoœæ=skewness(loudness), 
+           Kurtoza=kurtosis(loudness), Kw_pierwszy=quantile(loudness, 0.25),
+           Mediana=median(loudness), Kw_trzeci=quantile(loudness, 0.75))
+print(df1, row.names = FALSE)
+print(df2, row.names = FALSE)
+@
+
+Wartoœci zmiennej siêgaj¹ od -38.768 do 1.585, ich œrednia to -7.447,
+wariancja to 14.652, a odchylenie standardowe to 3.828.
+Wspó³czynnik asymetrii jest ujemny, zatem rozk³ad jest lewostronnie skoœny.
+Wspó³czynnik wyostrzenia jest dodatni, wiêc rozk³ad jest leptokurtyczny.
+
+<<label=loudness_qq, fig=TRUE, echo=FALSE>>=
+qqnorm(loudness)
+qqline(loudness)
+@
+
+<<echo=FALSE>>=
+lillie.test(loudness)
+@
+
+Zarówno wykres QQ, jak i test Lillieforsa wskazuj¹, ¿e rozk³ad zmiennej 'loudness'
+jest daleki od rozk³adu normalnego.
+
+\subsection{Zmienna 'tempo'}
+
+\SweaveOpts{width=20, height=15}
+<<label=tempo_histogram, fig=TRUE, echo=FALSE>>=
+histogram <- ggplot(dataSet, aes(x = tempo), xlab="tempo") +
+  geom_histogram(binwidth=5, color="black", fill="lightblue1") +
+  theme_ipsum(base_family = 'sans') +
+  labs(title="Histogram 'tempo'")
+boxplot <- ggplot(dataSet, aes(x = tempo), xlab="tempo") +
+  geom_boxplot(color="black", fill="lightblue1", alpha=0.5, outlier.size=5) +
+  theme_ipsum(base_family = 'sans') +
+  labs(title="Boxplot 'tempo'")
+grid.arrange(histogram, boxplot, nrow=1)
+@
+
+<<echo=FALSE>>=
+df1 <- data.frame(Zmienna="tempo", Minimum=min(tempo), 
+           Maksimum=max(tempo), Œrednia=mean(tempo), 
+           Wariancja=var(tempo), Odch._stand.=sd(tempo))
+df2 <- data.frame(Zmienna="tempo", Skoœnoœæ=skewness(tempo), 
+           Kurtoza=kurtosis(tempo), Kw_pierwszy=quantile(tempo, 0.25),
+           Mediana=median(tempo), Kw_trzeci=quantile(tempo, 0.75))
+print(df1, row.names = FALSE)
+print(df2, row.names = FALSE)
+@
+
+Wartoœci zmiennej siêgaj¹ od 0 do 242.32, ich œrednia to 121.07,
+wariancja to 824.52, a odchylenie standardowe to 28.714.
+Wspó³czynnik asymetrii jest dodatni, zatem rozk³ad jest prawoostronnie skoœny.
+Natomiast wspó³czynnik wyostrzenia jest ujemny, czyli rozk³ad jest platykurtyczny.
+
+<<label=tempo_qq, fig=TRUE, echo=FALSE>>=
+qqnorm(tempo)
+qqline(tempo)
+@
+
+<<echo=FALSE>>=
+lillie.test(tempo)
+@
+
+Zarówno wykres QQ, jak i test Lillieforsa wskazuj¹, ¿e rozk³ad zmiennej 'tempo'
+jest daleki od rozk³adu normalnego.
+
+\subsection{Zmienna 'valence'}
+
+Drug¹ ciekaw¹ zmienn¹ by³a zmienna 'valence'
+
+\SweaveOpts{width=20, height=15}
+<<label=valence_histogram, fig=TRUE, echo=FALSE>>=
+histogram <- ggplot(dataSet, aes(x = valence), xlab="valence") + 
+  geom_histogram(binwidth=0.03, color="black", fill="yellow1") + 
+  theme_ipsum(base_family = 'sans') + 
+  labs(title="Histogram 'valence'")
+boxplot <- ggplot(dataSet, aes(x = valence), xlab="valence") + 
+  geom_boxplot(color="black", fill="yellow1", alpha=0.5, outlier.size=5) + 
+  theme_ipsum(base_family = 'sans') + 
+  labs(title="Boxplot 'valence'")
+grid.arrange(histogram, boxplot, nrow=1)
+@
+
+<<echo=FALSE>>=
+df1 <- data.frame(Zmienna="valence", Minimum=min(valence), 
+           Maksimum=max(valence), Œrednia=mean(valence), 
+           Wariancja=var(valence), Odch._stand.=sd(valence))
+df2 <- data.frame(Zmienna="valence", Skoœnoœæ=skewness(valence), 
+           Kurtoza=kurtosis(valence), Kw_pierwszy=quantile(valence, 0.25),
+           Mediana=median(valence), Kw_trzeci=quantile(valence, 0.75))
+print(df1, row.names = FALSE)
+print(df2, row.names = FALSE)
+@
+
+Wartoœci zmiennej siêgaj¹ od 0 do 0.984, ich œrednia to 0.528, 
+wariancja to 0.0598, a odchylenie standardowe to 0.245. 
+Wspó³czynnik asymetrii jest ujemny, zatem rozk³ad jest lewostronnie skoœny. 
+Wspó³czynnik wyostrzenia jest ujemny, wiêc rozk³ad jest platykurtyczny. 
+W przypadku tej zmiennej mo¿emy zaobserwowaæ du¿o bardziej równomierny rozk³ad 
+wystêpowania danych cech. Wskazuje to na du¿¹ rozbie¿noœæ emocji towarzysz¹cych 
+artystom przy tworzeniu swoich utworów. Widzimy, ¿e powsta³o du¿o piosenek o 
+pozytywnym wydŸwiêku, jak równie¿ takich, które s¹ w stanie wprawiæ nas w nastrój 
+pe³en zadumy i zwróciæ uwagê na to, ¿e ¿ycie nie sk³ada siê z samych przyjemnych 
+chwil. Podobnie jak w przypadku zmiennej 'danceability' mo¿emy z ³atwoœci¹ zauwa¿yæ 
+na histogramie, ¿e jej rozk³ad jest, zgodnie z informacj¹ przekazywan¹ przez 
+wspó³czynnik asymetrii, lewostronnie skoœny. W przeciwieñstwie do zmiennej 
+'danceability', wykres pude³kowy zmiennej 'valence' nie pokazuje istotnych 
+wartoœci odstaj¹cych
+
+<<label=valence_qq, fig=TRUE, echo=FALSE>>=
+qqnorm(valence)
+qqline(valence)
+@
+
+<<echo=FALSE>>=
+lillie.test(valence)
+@
+
+Zarówno wykres QQ, jak i test Lillieforsa wskazuj¹, ¿e rozk³ad zmiennej 'valence' 
+jest daleki od rozk³adu normalnego.
+
+\section{Analiza zale¿noœci pomiêdzy zmiennymi}
+
+\subsection{Kowawariancja i korelacja miêdzy wszystkimi zmiennymi}
+
+<<echo=FALSE>>=
+cov(dataSet[,c(1,2,3,4,5)])
+cor(dataSet[,c(1,2,3,4,5)])
+@
+
+<<label=corrplot, fig=TRUE, echo=FALSE>>=
+ggcorrplot(cor(dataSet[,c(1,2,3,4,5)]))
+@
+
+Na podstawie uzyskanych danych mo¿na stwierdziæ, ¿e istnieje ca³kiem silna 
+korelacja pomiêdzy zmiennymi 'energy' i 'loudness'. Ponadto pomiêdzy zmiennymi 
+'valence' i 'danceability' oraz 'valence' i 'energy' istniej¹ zauwa¿alne korelacje.
+
+\subsection{Badanie zgodnoœci rozk³adów 'energy' i 'loudness'}
+
+Rozpocz¹³em od wygenerowania wykresu zale¿noœci 'energy' od 'loudness'
+
+<<label=energy_loudness_plot, fig=TRUE, echo=FALSE>>=
+plotle <- ggplot(dataSet, aes(x = loudness, y = energy), xlab="loudness",
+  ylab="energy") +
+  geom_point() +
+  geom_smooth(formula = y ~ x, method = "lm") +
+  theme_ipsum(base_family = 'sans') +
+  labs(title="Zale¿noœæ 'energy' od 'loudness'")
+plotle
+@
+
+Wykres nie wskaza³ obecnoœci zale¿noœci liniowej pomiêdzy 'energy' a 'loudness'
+zatem dalsza analiza nie jest sensowna.
+
+\subsection{Badanie zgodnoœci rozk³adów 'valence' i 'danceability'}
+
+Wygenerowa³em wykres zale¿noœci 'danceability' od 'valence'
+
+<<label=energy_danceability_valence, fig=TRUE, echo=FALSE>>=
+plotvd <- ggplot(dataSet, aes(x = valence, y = danceability), xlab="valence", 
+  ylab="danceability") + 
+  geom_point() + 
+  geom_smooth(formula = y ~ x, method = "lm") + 
+  theme_ipsum(base_family = 'sans') + 
+  labs(title="Zale¿noœæ 'danceability' od 'valence'")
+plotvd
+@
+
+Widoczna na wykresie zale¿noœæ liniowa jest wystarczaj¹co zauwa¿alna, zatem 
+przechodzê do analizy regresji liniowej
+\newline
+\newline
+Testowane zmienne s¹ niezale¿ne. 
+\newline
+Mo¿na przyj¹æ, ¿e zmienna 'danceability' ma rozk³ad zbli¿ony do rozk³adu normalnego. 
+
+<<echo=FALSE>>=
+reg <- lm(danceability ~ valence)
+summary(reg)
+@
+
+Z otrzymanych danych mo¿na wywnioskowaæ, ¿e istnieje istotna pozytywna relacja
+pomiêdzy 'valence' a 'danceability' (p-value < 0.001). Mo¿na zaobserwowaæ tak¿e
+wzrost 'valence' o 0.213 zwi¹zany z jednostkowym wzrostem 'danceability'
+\newline
+\newline
+Jednak¿e niski wskaŸnik \textbf{$R^{2}$} mówi o tym, ¿e testowane zmienne maj¹ 
+jednak doœæ ograniczony wp³yw na siebie.
+
+\subsection{Badanie zgodnoœci rozk³adów 'valence' i 'energy'}
+
+Finalnie wygenerowa³em wykresu zale¿noœci 'energy' od 'valence'
+
+<<label=energy_valence_plot, fig=TRUE, echo=FALSE>>=
+plotve <- ggplot(dataSet, aes(x = valence, y = energy), xlab="valence",
+  ylab="energy") +
+  geom_point() +
+  geom_smooth(formula = y ~ x, method = "lm") +
+  theme_ipsum(base_family = 'sans') +
+  labs(title="Zale¿noœæ 'energy' od 'valence'")
+plotve
+@
+
+Zale¿noœæ liniowa ukazana na wykresie nie jest na tyle widoczna, aby warto by³o
+przeprowadzaæ dalsze badanie.
+
+\section{Wnioski}
+Wnioski p³yn¹ce z przeprowadzonej analizy, s¹ nastêpuj¹ce:
+\begin{itemize}
+\item rozk³ad 'danceability' jest zbli¿ony kszta³tem do rozk³adu normalnego,
+\item wykonane testy Lillieforsa wskazuj¹ jednak¿e, ¿e badane rozk³ady nie s¹ 
+w rzeczywistoœci zbli¿one do rozk³adu normalnego,
+\item istnieje silna dodatnia korelacja pomiêdzy zmiennymi 'energy' i 'loudness',
+\item widoczna jest zale¿noœæ liniowa pomiêdzy 'valence' a 'danceability'
+\item im bardziej pozytywnie dana piosenka brzmi, tym bardziej nadaje siê ona do 
+tañca
+\end{itemize}
+
+\end{document}
